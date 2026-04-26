@@ -720,7 +720,7 @@ function formatNovelPrompt(data) {
 
   if (nai.characterPrompts?.length) {
     lines.push('');
-    lines.push(...nai.characterPrompts);
+    lines.push(...formatCharacterPromptBlocks(nai.characterPrompts));
   }
 
   lines.push('');
@@ -729,6 +729,59 @@ function formatNovelPrompt(data) {
   lines.push('');
   lines.push(buildGenerationLine(nai));
   return lines.join('\n');
+}
+
+function formatCharacterPromptBlocks(entries) {
+  const lines = [];
+
+  for (const entry of entries || []) {
+    const parsed = parseCharacterPromptEntry(entry);
+
+    if (parsed.c) {
+      if (lines.length && lines[lines.length - 1] !== '') lines.push('');
+      lines.push('c=');
+      lines.push(parsed.c);
+    }
+
+    if (parsed.uc) {
+      lines.push('');
+      lines.push('uc=');
+      lines.push(parsed.uc);
+    }
+
+    if (parsed.c || parsed.uc) lines.push('');
+  }
+
+  while (lines.length && lines[lines.length - 1] === '') lines.pop();
+  return lines;
+}
+
+function parseCharacterPromptEntry(entry) {
+  const text = String(entry ?? '').trim();
+  if (!text) return { c: '', uc: '' };
+
+  if (/^uc\s*=/i.test(text)) {
+    return {
+      c: '',
+      uc: text.replace(/^uc\s*=\s*/i, '').trim()
+    };
+  }
+
+  if (!/^c\s*=/i.test(text)) {
+    return { c: text, uc: '' };
+  }
+
+  const withoutC = text.replace(/^c\s*=\s*/i, '');
+  const ucIndex = withoutC.search(/\buc\s*=/i);
+
+  if (ucIndex < 0) {
+    return { c: withoutC.trim(), uc: '' };
+  }
+
+  return {
+    c: withoutC.slice(0, ucIndex).trim(),
+    uc: withoutC.slice(ucIndex).replace(/^uc\s*=\s*/i, '').trim()
+  };
 }
 
 function buildRobotCommand(nai) {
