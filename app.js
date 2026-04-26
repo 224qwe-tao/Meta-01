@@ -615,17 +615,25 @@ function buildV4CharacterPromptLines(v4Positive, v4Negative) {
     const negative = cleanPromptLine(negativeChars[i]);
 
     if (positive && negative) {
+      const positiveWithPrefix = ensureCharacterPrefix(positive);
       const cleanNegative = negative.replace(/^uc\s*=\s*/i, '').trim();
-      if (/\buc\s*=/.test(positive)) lines.push(positive);
-      else lines.push(`${positive} uc=${cleanNegative}`);
+      if (/\buc\s*=/.test(positiveWithPrefix)) lines.push(positiveWithPrefix);
+      else lines.push(`${positiveWithPrefix} uc=${cleanNegative}`);
     } else if (positive) {
-      lines.push(positive);
+      lines.push(ensureCharacterPrefix(positive));
     } else if (negative) {
       lines.push(`uc=${negative.replace(/^uc\s*=\s*/i, '').trim()}`);
     }
   }
 
   return lines;
+}
+
+function ensureCharacterPrefix(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  if (/^c\s*=/i.test(text)) return text;
+  return `c=${text}`;
 }
 
 function cleanPromptLine(value) {

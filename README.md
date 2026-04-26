@@ -10,6 +10,7 @@ A static, browser-only image metadata viewer for PNG, JPG/JPEG and WEBP files.
 - Extracts readable JPEG APP/EXIF/XMP/comment text
 - Extracts readable WEBP EXIF/XMP chunks
 - Best-effort AI metadata detection for Stable Diffusion, ComfyUI and NovelAI-style fields
+- Formats NovelAI V4/V4.5 character captions with the `c=` prefix and merges related `uc=` text
 - Best-effort Stealth PNGInfo / NovelAI LSB reader for signatures such as:
   - `stealth_pnginfo`
   - `stealth_pngcomp`
