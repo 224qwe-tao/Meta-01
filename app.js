@@ -678,7 +678,7 @@ function addResultCard(file, data) {
     const rawJson = formatRawMetadata(data);
     const technicalText = formatTechnicalInfo(data);
 
-    promptOutput.textContent = promptText;
+    renderPromptBlocks(promptOutput, data, promptText);
     rawOutput.textContent = rawJson;
     technicalOutput.textContent = technicalText;
     summaryGrid.append(...summaryItems(buildSummary(data)));
@@ -696,6 +696,48 @@ function addResultCard(file, data) {
   resultsEl.prepend(card);
   resultCount += 1;
   counterEl.textContent = `${resultCount} 個檔案`;
+}
+
+
+function renderPromptBlocks(container, data, fallbackText) {
+  container.innerHTML = '';
+
+  const nai = data?.novelAI;
+  if (!nai) {
+    const pre = document.createElement('pre');
+    pre.className = 'prompt-fallback';
+    pre.textContent = fallbackText || '未找到可整理的 NovelAI metadata。';
+    container.append(pre);
+    return;
+  }
+
+  container.append(buildPromptCard('機器人指令', buildRobotCommand(nai), 'command'));
+  container.append(buildPromptCard('prompt=', nai.positive || '(空)', 'prompt'));
+
+  for (const entry of nai.characterPrompts || []) {
+    const parsed = parseCharacterPromptEntry(entry);
+    if (parsed.c) container.append(buildPromptCard('c=', parsed.c, 'character'));
+    if (parsed.uc) container.append(buildPromptCard('uc=', parsed.uc, 'uc'));
+  }
+
+  container.append(buildPromptCard('negative_prompt=', nai.negative || '(空)', 'negative'));
+  container.append(buildPromptCard('生成參數', buildGenerationLine(nai), 'meta'));
+}
+
+function buildPromptCard(label, content, tone) {
+  const section = document.createElement('section');
+  section.className = `prompt-card ${tone ? `prompt-card-${tone}` : ''}`.trim();
+
+  const header = document.createElement('div');
+  header.className = 'prompt-card-header';
+  header.textContent = label;
+
+  const body = document.createElement('div');
+  body.className = 'prompt-card-body';
+  body.textContent = content || '(空)';
+
+  section.append(header, body);
+  return section;
 }
 
 function formatNovelPrompt(data) {
