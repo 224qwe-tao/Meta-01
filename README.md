@@ -55,3 +55,13 @@ After a short time, GitHub will show the public Pages URL.
 ## License
 
 MIT
+
+
+## V20260426-NAI45-fix
+
+本版本改善 NovelAI V4 / V4.5 metadata 整理：
+
+- 讀取 `v4_prompt.caption.char_captions`
+- 讀取 `v4_negative_prompt.caption.char_captions`
+- 把角色 prompt 與角色 uc 合併顯示
+- 避免只顯示 base prompt 而漏掉角色 prompt

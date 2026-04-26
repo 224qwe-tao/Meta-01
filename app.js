@@ -383,13 +383,53 @@ function extractNovelAI(data) {
 
     const base = normalized.base;
     const comment = normalized.comment;
-    const positive = firstText(base.Description, base.description, base.prompt, comment.prompt, comment.description, comment.Description);
-    const negative = firstText(comment.uc, comment.negative_prompt, comment.negativePrompt, comment.negative, base.uc, base.negative_prompt);
+    const v4Positive = extractV4Caption(comment, [
+      'v4_prompt',
+      'v4Prompt',
+      'v4_prompt_v2',
+      'v4PromptV2'
+    ]);
+    const v4Negative = extractV4Caption(comment, [
+      'v4_negative_prompt',
+      'v4NegativePrompt',
+      'v4_uc',
+      'v4Uc',
+      'v4_negative',
+      'v4Negative'
+    ]);
+    const characterPrompts = buildV4CharacterPromptLines(v4Positive, v4Negative);
+
+    const positive = firstText(
+      base.Description,
+      base.description,
+      base.prompt,
+      comment.prompt,
+      comment.description,
+      comment.Description,
+      v4Positive.base
+    );
+    const negative = firstText(
+      comment.uc,
+      comment.negative_prompt,
+      comment.negativePrompt,
+      comment.negative,
+      base.uc,
+      base.negative_prompt,
+      v4Negative.base
+    );
     const software = firstText(base.Software, base.software, comment.Software, comment.software);
     const source = firstText(base.Source, base.source, comment.model, comment.Model, comment.source);
 
     const hasNovelAIName = /novelai|nai|novel ai/i.test(`${software} ${source}`);
-    const hasUsefulFields = Boolean(positive || negative || comment.seed || comment.sampler || comment.steps || comment.scale);
+    const hasUsefulFields = Boolean(
+      positive ||
+      negative ||
+      characterPrompts.length ||
+      comment.seed ||
+      comment.sampler ||
+      comment.steps ||
+      comment.scale
+    );
 
     if (hasNovelAIName || hasUsefulFields || candidate.isStealth) {
       return {
@@ -399,6 +439,7 @@ function extractNovelAI(data) {
         comment,
         positive: positive || '',
         negative: negative || '',
+        characterPrompts,
         software: software || '',
         source: source || '',
         modelLabel: inferNaiModel(base, comment, source, software),
@@ -462,6 +503,140 @@ function parseLooseParameterText(text) {
   }
   return out;
 }
+
+function extractV4Caption(comment, keys) {
+  if (!comment || typeof comment !== 'object') return { base: '', charCaptions: [] };
+
+  for (const key of keys) {
+    const raw = comment[key];
+    if (raw === undefined || raw === null || raw === '') continue;
+
+    const obj = tryParseJson(raw);
+    const caption = obj?.caption || obj?.Caption || obj?.prompt || obj?.Prompt || obj;
+
+    const base = firstText(
+      caption?.base_caption,
+      caption?.baseCaption,
+      caption?.base,
+      caption?.prompt,
+      caption?.uc,
+      obj?.base_caption,
+      obj?.baseCaption,
+      obj?.prompt,
+      obj?.uc
+    );
+
+    const charSource =
+      caption?.char_captions ??
+      caption?.charCaptions ??
+      caption?.characters ??
+      caption?.chars ??
+      obj?.char_captions ??
+      obj?.charCaptions ??
+      obj?.characters ??
+      obj?.chars;
+
+    const charCaptions = normalizeCharCaptions(charSource);
+
+    if (base || charCaptions.length) {
+      return { base, charCaptions, raw: obj };
+    }
+  }
+
+  return { base: '', charCaptions: [] };
+}
+
+function normalizeCharCaptions(value) {
+  if (value === undefined || value === null || value === '') return [];
+
+  if (typeof value === 'string') {
+    return value
+      .split(/\n{2,}/)
+      .map(item => item.trim())
+      .filter(Boolean);
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map(item => extractCharCaptionText(item))
+      .filter(Boolean);
+  }
+
+  if (typeof value === 'object') {
+    return Object.values(value)
+      .map(item => extractCharCaptionText(item))
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function extractCharCaptionText(item) {
+  if (item === undefined || item === null) return '';
+
+  if (typeof item === 'string' || typeof item === 'number') {
+    return String(item).trim();
+  }
+
+  if (Array.isArray(item)) {
+    return item
+      .map(part => extractCharCaptionText(part))
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  if (typeof item === 'object') {
+    return firstText(
+      item.char_caption,
+      item.charCaption,
+      item.caption,
+      item.prompt,
+      item.description,
+      item.text,
+      item.value,
+      item.uc,
+      item.negative_prompt,
+      item.negativePrompt,
+      item.negative
+    );
+  }
+
+  return '';
+}
+
+function buildV4CharacterPromptLines(v4Positive, v4Negative) {
+  const positiveChars = v4Positive?.charCaptions || [];
+  const negativeChars = v4Negative?.charCaptions || [];
+  const max = Math.max(positiveChars.length, negativeChars.length);
+  const lines = [];
+
+  for (let i = 0; i < max; i++) {
+    const positive = cleanPromptLine(positiveChars[i]);
+    const negative = cleanPromptLine(negativeChars[i]);
+
+    if (positive && negative) {
+      const cleanNegative = negative.replace(/^uc\s*=\s*/i, '').trim();
+      if (/\buc\s*=/.test(positive)) lines.push(positive);
+      else lines.push(`${positive} uc=${cleanNegative}`);
+    } else if (positive) {
+      lines.push(positive);
+    } else if (negative) {
+      lines.push(`uc=${negative.replace(/^uc\s*=\s*/i, '').trim()}`);
+    }
+  }
+
+  return lines;
+}
+
+function cleanPromptLine(value) {
+  return String(value ?? '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\n+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 
 function addResultCard(file, data) {
   const node = template.content.cloneNode(true);
@@ -534,6 +709,12 @@ function formatNovelPrompt(data) {
   lines.push('');
   lines.push('prompt=');
   lines.push(nai.positive || '(空)');
+
+  if (nai.characterPrompts?.length) {
+    lines.push('');
+    lines.push(...nai.characterPrompts);
+  }
+
   lines.push('');
   lines.push('negative_prompt=');
   lines.push(nai.negative || '(空)');
