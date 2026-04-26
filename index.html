@@ -3,72 +3,79 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Image Metadata Viewer</title>
-  <meta name="description" content="A browser-only image metadata viewer for PNG, JPG/JPEG, WEBP and AI generation information." />
+  <title>NovelAI 圖片元數據整理器</title>
+  <meta name="description" content="Browser-only NovelAI / Stable Diffusion image metadata viewer for PNG, JPG and WEBP." />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="app-shell">
-    <section class="hero">
+  <main class="page">
+    <section class="panel intro">
       <div>
-        <p class="eyebrow">Local browser tool</p>
-        <h1>AI Image Metadata Viewer</h1>
-        <p class="subtitle">讀取 PNG / JPG / WEBP 圖片中的一般 metadata、Stable Diffusion 參數、ComfyUI workflow，以及 NovelAI / Stealth PNGInfo 資料。</p>
+        <h1>NovelAI 圖片元數據整理器 <span>V20260426</span></h1>
+        <p>選擇、拖放或貼上 PNG/JPG/WEBP 圖片。程式會優先整理 NovelAI / Stealth PNGInfo metadata，並把 prompt、negative prompt、seed、sampler 等資料分開顯示。</p>
       </div>
-      <div class="privacy-card">
-        <strong>Privacy</strong>
-        <span>圖片只在你的瀏覽器內處理，不會上傳到伺服器。</span>
-      </div>
+      <div class="privacy">本工具只在瀏覽器內處理圖片，不會上傳到伺服器。</div>
     </section>
 
-    <section id="dropZone" class="drop-zone" tabindex="0" aria-label="Drop image files here">
+    <section id="dropZone" class="drop-zone" tabindex="0" aria-label="drop image files here">
       <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
-      <div class="drop-icon">⇪</div>
-      <h2>拖放圖片到這裡</h2>
-      <p>也可以貼上剪貼簿圖片，或按下面按鈕選擇檔案。</p>
-      <div class="actions">
-        <button id="chooseBtn" class="primary" type="button">選擇圖片</button>
-        <button id="clearBtn" class="secondary" type="button">清空結果</button>
-      </div>
-      <p id="status" class="status" role="status">支援 PNG、JPG/JPEG、WEBP。最新結果會顯示在最上方。</p>
+      <p class="drop-title">將圖片拖放到此處</p>
+      <p class="drop-small">或者</p>
+      <button id="chooseBtn" class="btn primary" type="button">選擇文件</button>
+      <p id="status" class="status" role="status">支援 PNG、JPG/JPEG、WEBP。可貼上剪貼簿圖片。</p>
     </section>
 
-    <section class="result-header">
+    <div class="toolbar">
+      <strong>結果</strong>
       <div>
-        <p class="eyebrow">Results</p>
-        <h2>提取結果</h2>
+        <span id="counter">0 個檔案</span>
+        <button id="clearBtn" class="btn ghost" type="button">清空</button>
       </div>
-      <span id="counter" class="counter">0 files</span>
-    </section>
+    </div>
 
     <section id="results" class="results" aria-live="polite"></section>
   </main>
 
   <template id="resultTemplate">
     <article class="result-card">
-      <div class="preview-wrap">
-        <img class="preview" alt="Image preview" />
-      </div>
-      <div class="result-main">
-        <div class="result-title-row">
-          <div>
-            <h3 class="file-name"></h3>
-            <p class="file-note"></p>
-          </div>
-          <div class="card-actions">
-            <button class="copy-btn secondary" type="button">複製 JSON</button>
-            <button class="download-btn secondary" type="button">下載 TXT</button>
-          </div>
+      <header class="card-head">
+        <div>
+          <h2 class="file-name"></h2>
+          <p class="file-note"></p>
         </div>
-        <div class="summary-tags"></div>
-        <details open>
-          <summary>格式化資料</summary>
-          <pre class="pretty-output"></pre>
-        </details>
-        <details>
-          <summary>Raw JSON</summary>
-          <pre class="raw-output"></pre>
-        </details>
+        <div class="card-actions">
+          <button class="copy-prompt-btn btn tiny" type="button">複製文本</button>
+          <button class="copy-json-btn btn tiny" type="button">複製 JSON</button>
+          <button class="download-btn btn tiny" type="button">下載 TXT</button>
+        </div>
+      </header>
+
+      <div class="card-body">
+        <img class="preview" alt="圖片預覽" />
+
+        <div class="main-info">
+          <div class="summary-grid"></div>
+
+          <section class="block prompt-section">
+            <div class="block-title-row">
+              <h3>AI 繪圖機器人指令：</h3>
+            </div>
+            <pre class="prompt-output"></pre>
+          </section>
+
+          <section class="block raw-section">
+            <div class="block-title-row">
+              <h3>原始 LSB / Metadata JSON 數據：</h3>
+            </div>
+            <pre class="raw-output collapsed"></pre>
+            <button class="show-more-btn" type="button">顯示全部</button>
+          </section>
+
+          <details class="extra-detail">
+            <summary>檔案與 Chunk 資料</summary>
+            <pre class="technical-output"></pre>
+          </details>
+        </div>
       </div>
     </article>
   </template>
